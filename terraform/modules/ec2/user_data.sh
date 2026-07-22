@@ -29,7 +29,7 @@ retry() {
             echo "Command failed after $n attempts: $*" >&2
             return 1
         fi
-        echo "Attempt $n/$max failed: $*. Retrying in ${delay}s..." >&2
+        echo "Attempt $n/$max failed: $*. Retrying in $${delay}s..." >&2
         sleep "$delay"
         ((n++))
     done
