@@ -23,7 +23,7 @@ const APP_VERSION = process.env.APP_VERSION || 'dev';
 
 // Health check for docker-compose healthcheck and the CI/CD deploy gate.
 // Confirms the DB connection is actually alive, not just that the process is running.
-app.get('/health', async (req, res) => {
+app.get('/api/health', async (req, res) => {
     try {
         await db.query('SELECT 1');
         return res.status(200).json({ status: 'ok', version: APP_VERSION });
@@ -70,17 +70,17 @@ app.get('/', async (req, res) => {
   }
 });
 
-app.get('/student', async (req, res) => {
+app.get('/api/student', async (req, res) => {
     const [data] = await db.query("SELECT * FROM student");
     return res.json(data);
 });
 
-app.get('/teacher', async (req, res) => {
+app.get('/api/teacher', async (req, res) => {
     const [data] = await db.query("SELECT * FROM teacher");
     return res.json(data);
 });
 
-app.post('/addstudent', async (req, res) => {
+app.post('/api/addstudent', async (req, res) => {
     try {
         const lastStudentID = await getLastStudentID();
         const nextStudentID = lastStudentID + 1;
@@ -101,7 +101,7 @@ app.post('/addstudent', async (req, res) => {
     }
 });
 
-app.post('/addteacher', async (req, res) => {
+app.post('/api/addteacher', async (req, res) => {
     try {
         const lastteacherID = await getLastteacherID();
         const nextteacherID = lastteacherID + 1;
@@ -122,7 +122,7 @@ app.post('/addteacher', async (req, res) => {
     }
 });
 
-app.delete('/student/:id', async (req, res) => {
+app.delete('/api/student/:id', async (req, res) => {
     const studentId = req.params.id;
     const sqlDelete = 'DELETE FROM student WHERE id = ?';
     const sqlSelect = 'SELECT id FROM student ORDER BY id';
@@ -145,7 +145,7 @@ app.delete('/student/:id', async (req, res) => {
     }
 });
 
-app.delete('/teacher/:id', async (req, res) => {
+app.delete('/api/teacher/:id', async (req, res) => {
     const teacherID = req.params.id;
     const sqlDelete = 'DELETE FROM teacher WHERE id = ?';
     const sqlSelect = 'SELECT id FROM teacher ORDER BY id';

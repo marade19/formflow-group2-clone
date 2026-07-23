@@ -12,7 +12,8 @@ function Teacher() {
 
   const [data, setData]= useState([])
 
-  const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
+  // Relative path — nginx proxies /api/ to the backend internally.
+  const API_BASE_URL = '/api';
 
   const getData=()=> {
     fetch(`${API_BASE_URL}/teacher`)

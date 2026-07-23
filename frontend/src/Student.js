@@ -11,9 +11,10 @@ function Student() {
   });
   const [data, setData]= useState([])
 
-  const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
-
-  console.log("API",API_BASE_URL)
+  // Relative path — nginx proxies /api/ to the backend container
+  // internally. No REACT_APP_API_BASE_URL build secret needed, and this
+  // works identically in local dev, staging, or production.
+  const API_BASE_URL = '/api';
 const getData=()=> {
   fetch(`${API_BASE_URL}/student`)
   .then((res) => res.json())
