@@ -1,0 +1,120 @@
+name: Build and Deploy FormFlow
+
+on:
+  push:
+    branches:
+      - main
+
+env:
+  DOCKERHUB_USER: jioke1
+  FRONTEND_IMAGE: formflow-frontend
+  BACKEND_IMAGE: formflow-backend
+
+jobs:
+  deploy:
+    name: Build, Push and Deploy
+    runs-on: ubuntu-latest
+
+    steps:
+      #################################################
+      # Checkout Repository
+      #################################################
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      #################################################
+      # Generate Image Tag (Git SHA)
+      #################################################
+      - name: Generate Image Tag
+        run: |
+          echo "TAG=${GITHUB_SHA::7}" >> $GITHUB_ENV
+
+      #################################################
+      # Login to Docker Hub
+      #################################################
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      #################################################
+      # Build Frontend Image
+      #################################################
+      - name: Build Frontend Docker Image
+        run: |
+          docker build \
+            --build-arg REACT_APP_API_BASE_URL="${{ secrets.REACT_APP_API_BASE_URL }}" \
+            --build-arg APP_VERSION=$TAG \
+            -t $DOCKERHUB_USER/$FRONTEND_IMAGE:$TAG \
+            -t $DOCKERHUB_USER/$FRONTEND_IMAGE:latest \
+            ./frontend
+
+      #################################################
+      # Build Backend Image
+      #################################################
+      - name: Build Backend Docker Image
+        run: |
+          docker build \
+            --build-arg APP_VERSION=$TAG \
+            -t $DOCKERHUB_USER/$BACKEND_IMAGE:$TAG \
+            -t $DOCKERHUB_USER/$BACKEND_IMAGE:latest \
+            ./backend
+
+      #################################################
+      # Push Frontend Image
+      #################################################
+      - name: Push Frontend Image
+        run: |
+          docker push $DOCKERHUB_USER/$FRONTEND_IMAGE:$TAG
+          docker push $DOCKERHUB_USER/$FRONTEND_IMAGE:latest
+
+      #################################################
+      # Push Backend Image
+      #################################################
+      - name: Push Backend Image
+        run: |
+          docker push $DOCKERHUB_USER/$BACKEND_IMAGE:$TAG
+          docker push $DOCKERHUB_USER/$BACKEND_IMAGE:latest
+
+      #################################################
+      # Configure AWS Credentials
+      #################################################
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ${{ secrets.AWS_REGION }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
+      #################################################
+      # Deploy via AWS Systems Manager
+      #################################################
+      - name: Deploy to EC2 using AWS SSM
+        run: |
+
+          aws ssm send-command \
+            --instance-ids "${{ secrets.INSTANCE_ID }}" \
+            --document-name "AWS-RunShellScript" \
+            --comment "Deploy FormFlow ${TAG}" \
+            --parameters commands="[
+            'sudo mkdir -p /opt/capstone',
+            'if [ ! -d /opt/capstone/app/.git ]; then git clone https://github.com/${{ github.repository }}.git /opt/capstone/app; fi',
+            'cd /opt/capstone/app',
+            'git fetch origin',
+            'git reset --hard origin/main',
+            'sed -i \"s/^TAG=.*/TAG=${TAG}/\" .env',
+            'docker compose pull',
+            'docker compose up -d --remove-orphans',
+            'docker image prune -af'
+            ]"
+
+      #################################################
+      # Deployment Summary
+      #################################################
+      - name: Deployment Summary
+        run: |
+          echo "Deployment completed successfully."
+          echo "Image Version: $TAG"
+          echo "Frontend Image: $DOCKERHUB_USER/$FRONTEND_IMAGE:$TAG"
+          echo "Backend Image: $DOCKERHUB_USER/$BACKEND_IMAGE:$TAG"
